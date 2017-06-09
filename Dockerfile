@@ -1,34 +1,30 @@
-FROM ubuntu:16.04
+FROM richarvey/nginx-php-fpm:php7
 MAINTAINER Jose Vicente Orts <jvortsromero@gmail.com>
 LABEL autor="Jose Vicente Orts Romero"
 LABEL version="1.0"
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV LARAVEL_VERSION 5.4.*
 
 # Update
-RUN apt-get update && apt-get -y dist-upgrade
+RUN apk update && apk upgrade
 
-# Seed database password
-COPY mysqlpwdseed /root/mysqlpwdseed
-RUN debconf-set-selections /root/mysqlpwdseed
+# Install sshd
+RUN apk add openssh-server openssh-client curl nano supervisor git
 
-# NGINX, PHP, composer, supervisor
-RUN apt-get install nginx git php7.0 php7.0-curl php7.0-fpm php7.0-gd php7.0-mbstring php7.0-xml php7.0-mysql php7.0-mcrypt php7.0-zip curl nano supervisor -y
+# PHP, composer
+#RUN apt-get install php7.0 php7.0-curl php7.0-fpm php7.0-gd php7.0-mbstring php7.0-xml php7.0-mysql php7.0-mcrypt php7.0-zip -y
+RUN apk add php7-tokenizer
 RUN /usr/bin/curl -sS https://getcomposer.org/installer |/usr/bin/php && /bin/mv composer.phar /usr/local/bin/composer
+WORKDIR /var/www/laravel/
+RUN adduser -D -u 1000 laravel && chown -R laravel /var/www/laravel/
+USER laravel
+RUN composer create-project laravel/laravel=${LARAVEL_VERSION} /var/www/laravel --prefer-dist 
+USER root
 
-## Configuration
-RUN sed -i 's/^\;error_log\s*=\s*syslog\s*$/error_log = \/var\/log\/php\/cgi.log/' /etc/php/7.0/fpm/php.ini && \
-    sed -i 's/^\;error_log\s*=\s*syslog\s*$/error_log = \/var\/log\/php\/cli.log/' /etc/php/7.0/cli/php.ini
+ADD files/entrypoint.sh /
+ADD files/laravel.conf /etc/nginx/sites-enabled/
+RUN ln -fs /etc/nginx/sites-enabled/laravel.conf /etc/nginx/sites-available/laravel.conf 
 
-COPY files/root /
-RUN ln -fs /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default 
-
-WORKDIR /var/www/
-#VOLUME /var/www/
-
-RUN composer create-project laravel/laravel /var/www/laravel --prefer-dist
-RUN chown www-data:www-data -R /var/www/laravel/storage /var/www/laravel/bootstrap/cache
-
-EXPOSE 80 443
+EXPOSE 22 80 443
 
 ENTRYPOINT ["/entrypoint.sh"]
