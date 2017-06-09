@@ -16,7 +16,7 @@ apk add openssh-server openssh-client curl nano supervisor git php7-tokenizer ph
 mkdir /var/www/laravel/ && cd /var/www/laravel/ && \
 adduser -D -u 1000 laravel && chown -R laravel /var/www/laravel/
 USER laravel
-RUN composer create-project laravel/laravel=${LARAVEL_VERSION} /var/www/laravel --prefer-dist 
+RUN composer create-project laravel/laravel=${LARAVEL_VERSION} /var/www/laravel --prefer-dist --keep-vcs
 USER root
 
 ADD files/entrypoint.sh /
